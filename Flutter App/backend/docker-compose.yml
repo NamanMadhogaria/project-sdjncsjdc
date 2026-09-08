@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: tracking_db
+      POSTGRES_USER: tracking
+      POSTGRES_PASSWORD: tracking
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  mqtt:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+    command: mosquitto -c /mosquitto-no-auth.conf
+
+  api:
+    build: .
+    depends_on:
+      - db
+      - mqtt
+    environment:
+      DATABASE_URL: postgresql+psycopg://tracking:tracking@db:5432/tracking_db
+      SECRET_KEY: change-this-secret
+      MQTT_HOST: mqtt
+      MQTT_PORT: 1883
+      ENABLE_MQTT: "true"
+    ports:
+      - "8000:8000"
+
+  simulator:
+    build: .
+    depends_on:
+      - api
+      - mqtt
+    environment:
+      MQTT_HOST: mqtt
+      MQTT_PORT: 1883
+    command: python simulator/gps_simulator.py
+
+volumes:
+  postgres_data:
